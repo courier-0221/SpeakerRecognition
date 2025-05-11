@@ -169,9 +169,9 @@ class Res2Net(nn.Module):
         x = self.layer4(x)
 
         x = x.reshape(x.shape[0], -1, x.shape[-1])
-        print(x.shape)
+        # print(x.shape)
         x = self.pooling(x)
-        print(x.shape)
+        # print(x.shape)
         x = self.bn2(x)
         x = self.linear(x)
         x = self.bn3(x)

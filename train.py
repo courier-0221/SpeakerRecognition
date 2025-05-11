@@ -6,7 +6,8 @@ from mvector.utils.utils import add_arguments, print_arguments
 
 parser = argparse.ArgumentParser(description=__doc__)
 add_arg = functools.partial(add_arguments, argparser=parser)
-add_arg('configs',              str,    'configs/cam++.yml',        '配置文件')
+# add_arg('configs',              str,    'configs/cam++.yml',        '配置文件')
+add_arg('configs',              str,    'configs/res2net.yml',        '配置文件')
 add_arg('data_augment_configs', str,    'configs/augmentation.yml', '数据增强配置文件')
 add_arg("local_rank",           int,    0,                          '多卡训练需要的参数')
 add_arg("use_gpu",              bool,   True,                       '是否使用GPU训练')
@@ -25,8 +26,11 @@ trainer = MVectorTrainer(configs=args.configs,
                          data_augment_configs=args.data_augment_configs,
                          overwrites=args.overwrites)
 
-trainer.train(save_model_path=args.save_model_path,
-              log_dir=args.log_dir,
-              resume_model=args.resume_model,
-              pretrained_model=args.pretrained_model,
-              do_eval=args.do_eval)
+# trainer.train(save_model_path=args.save_model_path,
+#               log_dir=args.log_dir,
+#               resume_model=args.resume_model,
+#               pretrained_model=args.pretrained_model,
+#               do_eval=args.do_eval)
+
+# trainer.export_pt_onnx(save_model_path='models/', resume_model='models/CAMPPlus_Fbank/best_model/')
+trainer.export_pt_onnx(save_model_path='models/', resume_model='models/Res2Net_Fbank/best_model/')

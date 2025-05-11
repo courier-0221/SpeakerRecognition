@@ -4,7 +4,7 @@ import torchaudio.compliance.kaldi as Kaldi
 from loguru import logger
 from torch import nn
 from torchaudio.transforms import MelSpectrogram, Spectrogram, MFCC
-
+import pdb
 
 class AudioFeaturizer(nn.Module):
     """音频特征器
@@ -74,7 +74,11 @@ class AudioFeaturizer(nn.Module):
         else:
             # 使用普通方法提取音频特征
             feature = self.feat_fun(waveforms)
+            # print(f"befor feature.shape: {feature.shape}")
             feature = feature.transpose(2, 1)
+            # print("before")
+            # for i in range(feature.shape[1]):
+            #     print(f"[{i}] {feature[0, i].tolist()}" )
         # 归一化
         feature = feature - feature.mean(1, keepdim=True)
         if input_lens_ratio is not None:
@@ -88,6 +92,10 @@ class AudioFeaturizer(nn.Module):
             mask = mask.unsqueeze(-1)
             # 对特征进行掩码操作
             feature = torch.where(mask, feature, torch.zeros_like(feature))
+        # print(f"after feature.shape: {feature.shape}")
+        # print("after")
+        # for i in range(feature.shape[1]):
+        #     print(f"[{i}] {feature[0, i].tolist()}" )
         return feature
 
     @property
@@ -111,6 +119,29 @@ class AudioFeaturizer(nn.Module):
             raise Exception('没有{}预处理方法'.format(self._feature_method))
 
 
+# class KaldiFbank(nn.Module):
+#     def __init__(self, **kwargs):
+#         super(KaldiFbank, self).__init__()
+#         self.kwargs = kwargs
+
+#     def forward(self, waveforms):
+#         """
+#         :param waveforms: [Batch, Length]
+#         :return: [Batch, Feature, Length]
+#         """
+#         # pdb.set_trace()
+#         log_fbanks = []
+#         for waveform in waveforms:
+#             if len(waveform.shape) == 1:
+#                 waveform = waveform.unsqueeze(0)
+#             # fbank输出的log_fbank形状为(frames, features)
+#             log_fbank = Kaldi.fbank(waveform, **self.kwargs)
+#             # 转置特征矩阵(frames, features) ==> (features, frames)
+#             log_fbank = log_fbank.transpose(0, 1)
+#             log_fbanks.append(log_fbank)
+#         log_fbank = torch.stack(log_fbanks)
+#         return log_fbank
+
 class KaldiFbank(nn.Module):
     def __init__(self, **kwargs):
         super(KaldiFbank, self).__init__()
@@ -121,11 +152,14 @@ class KaldiFbank(nn.Module):
         :param waveforms: [Batch, Length]
         :return: [Batch, Feature, Length]
         """
+        # pdb.set_trace()
         log_fbanks = []
         for waveform in waveforms:
             if len(waveform.shape) == 1:
                 waveform = waveform.unsqueeze(0)
+            # fbank输出的log_fbank形状为(frames, features)
             log_fbank = Kaldi.fbank(waveform, **self.kwargs)
+            # 转置特征矩阵(frames, features) ==> (features, frames)
             log_fbank = log_fbank.transpose(0, 1)
             log_fbanks.append(log_fbank)
         log_fbank = torch.stack(log_fbanks)

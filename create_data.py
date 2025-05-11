@@ -36,7 +36,28 @@ def create_cn_celeb2(list_path, data_path='dataset/'):
             f_train.write(f'{sound_path}\t{label + last_label}\n')
     f_train.close()
 
+def create_cn_enroll_file(list_path, data_path='dataset/'):
+    data_dir = os.path.join(data_path, 'cn-celeb-test/eval/enroll')
+    if not os.path.exists(data_dir):
+        print('cn-celeb-test数据集不存在，请先下载并解压到dataset目录，目前忽略，你也可继续正常训练')
+        return
+    f_train = open(list_path, 'a', encoding='utf-8')
+
+    all_files = list()
+    for filename in os.listdir(data_dir):
+        file_path = os.path.join(data_dir, filename)
+        if os.path.isfile(file_path):
+            all_files.append(file_path)
+
+    all_files.sort()
+
+    last_label = 800
+    for idx, file_path in enumerate(all_files):
+        f_train.write(f'{file_path}\t{idx + last_label}\n')
+
+    f_train.close()
 
 if __name__ == '__main__':
-    create_cn_celeb(list_path='dataset/train_list.txt', data_path='dataset')
-    create_cn_celeb2(list_path='dataset/train_list.txt', data_path='dataset')
+    # create_cn_celeb(list_path='dataset/train_list.txt', data_path='dataset')
+    # create_cn_celeb2(list_path='dataset/train_list.txt', data_path='dataset')
+    create_cn_enroll_file(list_path="dataset/cn-celeb-test/enroll_list.txt", data_path='dataset')

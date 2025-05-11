@@ -31,6 +31,8 @@ from mvector.optimizer.scheduler import MarginScheduler
 from mvector.utils.checkpoint import save_checkpoint, load_pretrained, load_checkpoint
 from mvector.utils.utils import dict_to_object, print_arguments, convert_string_based_on_type
 
+import onnx
+from onnxsim import simplify
 
 class MVectorTrainer(object):
     def __init__(self,
@@ -553,6 +555,73 @@ class MVectorTrainer(object):
         infer_model = torch.jit.script(self.model)
         infer_model_path = os.path.join(save_model_path,
                                         f'{self.configs.use_model}_{self.configs.preprocess_conf.feature_method}',
+                                        'inference.pt')
+        os.makedirs(os.path.dirname(infer_model_path), exist_ok=True)
+        torch.jit.save(infer_model, infer_model_path)
+        logger.info("预测模型已保存：{}".format(infer_model_path))
+
+    def export_pt_onnx(self, save_model_path='models/', resume_model='models/CAMPPlus_Fbank/best_model/'):
+        """
+        导出预测模型
+        :param save_model_path: 模型保存的路径
+        :param resume_model: 准备转换的模型路径
+        :return:
+        """
+        # 获取模型
+        self.__setup_model(input_size=80)
+        self.model = self.model.to('cpu')
+        # 加载预训练模型
+        if os.path.isdir(resume_model):
+            resume_model = os.path.join(resume_model, 'model.pth')
+        assert os.path.exists(resume_model), f"{resume_model} 模型不存在！"
+        model_state_dict = torch.load(resume_model, map_location='cpu')
+
+        # 尝试加载权重
+        try:
+            self.model.load_state_dict(model_state_dict)
+        except RuntimeError as e:
+            print(f"RuntimeError: {e}")
+            print("Attempting to load with strict=False...")
+            missing_keys, unexpected_keys = self.model.load_state_dict(model_state_dict, strict=False)
+            print("Missing keys:", missing_keys)
+            print("Unexpected keys:", unexpected_keys)
+
+        logger.info('成功恢复模型参数和优化方法参数：{}'.format(resume_model))
+        self.model.eval()
+
+        self.trans_submit_model(save_model_path)
+        self.trans_onnx_model(save_model_path)
+
+    def trans_onnx_model(self, save_model_path='models/'):
+        # 获取静态模型
+        dummy_input = torch.randn(1, 345, 80)
+        infer_model = torch.jit.trace(self.model, dummy_input)
+        infer_model_path = os.path.join(save_model_path,
+                                        f'{self.configs.preprocess_conf.feature_method}',
+                                        'inference.onnx')
+        os.makedirs(os.path.dirname(infer_model_path), exist_ok=True)
+
+        torch.onnx.export(infer_model,
+                      dummy_input,
+                      infer_model_path,
+                      export_params=True,
+                      opset_version=11,
+                      do_constant_folding=True,
+                      input_names=['feature'],
+                      output_names=['embedding'],
+                      dynamic_axes={'feature': {0: 'batch_size', 1: 'frame_num'},
+                                    'embedding': {0: 'batch_size'}})
+        onnx_model = onnx.load(infer_model_path)
+        model_simp, check = simplify(onnx_model)
+        onnx.save(model_simp, infer_model_path)
+
+        logger.info("预测模型已保存：{}".format(infer_model_path))
+
+    def trans_submit_model(self, save_model_path='models/'):
+        dummy_input = torch.randn(1, 345, 80)
+        infer_model = torch.jit.trace(self.model, dummy_input)
+        infer_model_path = os.path.join(save_model_path,
+                                        f'{self.configs.preprocess_conf.feature_method}',
                                         'inference.pt')
         os.makedirs(os.path.dirname(infer_model_path), exist_ok=True)
         torch.jit.save(infer_model, infer_model_path)
